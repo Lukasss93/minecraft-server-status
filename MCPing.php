@@ -1,6 +1,6 @@
 <?php
 
-class Mcping
+class MCPing
 {
     private $socket;
     private $timeout;
@@ -144,7 +144,7 @@ class Mcping
         $output=str_replace('\n','<br>',$output);
         return $output;
     }
-    
+
     public static function MotdToHtml($minetext){
         preg_match_all("/[^§&]*[^§&]|[§&][0-9a-z][^§&]*/", $minetext, $brokenupstrings);
         $returnstring = "";
@@ -290,6 +290,7 @@ class Mcping
 
         if (!$this->socket) {
             $this->error = "Failed to connect or create a socket: $errno ($errstr)";
+            return $this;
         }
 
         if($this->error==null)
@@ -393,7 +394,7 @@ class Mcping
 
     }
 
-    public function PingOld()
+    private function PingOld()
     {
 
         fwrite($this->socket, "\xFE\x01");
