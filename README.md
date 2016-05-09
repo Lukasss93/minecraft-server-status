@@ -37,16 +37,8 @@ then add true parameter after `host` and `port`.
 
 ## Example MCQuery
 
-If the server has query enabled (`enable-query`), then you can use `MCQuery` to more retrieve information about a server.
+Coming soon
 
-```php
-<?php
-	require 'MCQuery.php';
-	
-	$status = new MCQuery();
-	print_r( $status->GetStatus( 'localhost', 25565 )->Response() );
-?>
-```
 
 Please note that this library does resolve SRV records too.
 
