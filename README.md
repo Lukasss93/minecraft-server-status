@@ -25,8 +25,8 @@ Query allows to request a full list of servers' plugins and players, however thi
 <?php
 	require 'MCPing.php';	
 	
-	$status = new MCPing( 'localhost', 25565 );
-	print_r( $status->GetStatus() );	
+	$status = new MCPing();
+	print_r( $status->GetStatus( 'localhost', 25565 )->Response() );	
 ?>
 ```
 
@@ -37,14 +37,14 @@ then add true parameter after `host` and `port`.
 
 ## Example MCQuery
 
-If the server has query enabled (`enable-query`), then you can use `MinecraftQuery` to more retrieve information about a server.
+If the server has query enabled (`enable-query`), then you can use `MCQuery` to more retrieve information about a server.
 
 ```php
 <?php
 	require 'MCQuery.php';
 	
-	$status = new MCQuery( 'localhost', 25565 );
-	print_r( $status->GetStatus() );
+	$status = new MCQuery();
+	print_r( $status->GetStatus( 'localhost', 25565 )->Response() );
 ?>
 ```
 
