@@ -18,6 +18,8 @@ class MCPing
 	private $favicon;
 	private $mods;
 
+	//public methods
+
 	public function __construct()
 	{
 	}
@@ -117,9 +119,6 @@ class MCPing
 
 		return $this;
 	}
-
-
-	//pubblic methods
 
 	public function Response()
 	{
@@ -445,7 +444,7 @@ class MCPing
 			$Data = explode("\x00", $Data);
 
 
-			$this->host = $Data[3];
+			$this->motd = $Data[3];
 			$this->players = intval($Data[4]);
 			$this->max_players = intval($Data[5]);
 			$this->protocol = intval($Data[1]);
@@ -456,7 +455,7 @@ class MCPing
 
 			$Data = explode("\xA7", $Data);
 
-			$this->host = substr($Data[0], 0, -1);
+			$this->motd = substr($Data[0], 0, -1);
 			$this->players = isset($Data[1]) ? intval($Data[1]) : 0;
 			$this->max_players = isset($Data[2]) ? intval($Data[2]) : 0;
 			$this->protocol = 0;

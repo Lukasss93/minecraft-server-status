@@ -33,6 +33,8 @@ Query allows to request a full list of servers' plugins and players, however thi
 If you want to get `ping` info from a server that uses a version older than Minecraft 1.7,
 then add true parameter after `host` and `port`.
 
+Please note that this library does resolve **SRV** records too.
+
 ----
 
 ## Example MCQuery
@@ -40,5 +42,5 @@ then add true parameter after `host` and `port`.
 Coming soon
 
 
-Please note that this library does resolve SRV records too.
+
 
