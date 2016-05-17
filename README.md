@@ -60,6 +60,7 @@ error|string|Returns any error message
 hostname|string|Returns the server hostname or IP address 
 address|string|Returns server IP address
 port|int|Returns the server port
+ping|int|Returns server ping
 version|string|Returns the server version
 protocol|int|Returns the server protocol
 players|int|Returns the number of online players
