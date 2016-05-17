@@ -4,7 +4,7 @@ class MCPing
 {
 	private $socket;
 	private $timeout;
-	
+
 	private $error;
 	private $host;
 	private $address;
@@ -18,26 +18,26 @@ class MCPing
 	private $motd;
 	private $favicon;
 	private $mods;
-	
+
 	//public methods
-	
+
 	public function __construct()
 	{
 	}
-	
+
 	public function __destruct()
 	{
 		$this->Close();
 	}
-	
+
 	public function GetStatus($Hostname = '127.0.0.1', $Port = 25565, $IsOld17 = false, $Timeout = 2)
 	{
 		$this->Clear();
-		
+
 		$this->host = $Hostname;
 		$this->port = $Port;
 		$this->timeout = $Timeout;
-		
+
 		//validate host
 		if (filter_var($this->host, FILTER_VALIDATE_IP))
 		{
@@ -48,7 +48,7 @@ class MCPing
 		{
 			//find domain ip
 			$resolvedIp = gethostbyname($this->host);
-			
+
 			if (filter_var($resolvedIp, FILTER_VALIDATE_IP))
 			{
 				//resolvedIp is a valid IP => address is resolvedIp
@@ -64,13 +64,13 @@ class MCPing
 				 * the resolution time is almost always 15-25sec.
 				 * I don't know how fix the time.
 				 */
-				
+
 				if (!$dns)
 				{
 					$this->error = 'dns_get_record(): A temporary server error occurred';
 					return $this;
 				}
-				
+
 				if (is_array($dns) and count($dns) > 0)
 				{
 					$this->address = gethostbyname($dns[0]['target']);
@@ -78,31 +78,31 @@ class MCPing
 				}
 			}
 		}
-		
+
 		//validate port
 		if (!is_int($this->port) || $this->port < 1024 || $this->port > 65535)
 		{
 			$this->error = "Invalid port";
 			return $this;
 		}
-		
+
 		//validate isold17 parameter
 		if (!is_bool($IsOld17))
 		{
 			$this->error = 'Invalid parameter in $isold17';
 			return $this;
 		}
-		
+
 		//validate timeout
 		if (!is_int($this->timeout) || $this->timeout < 0)
 		{
 			$this->error = "Invalid timeout";
 			return $this;
 		}
-		
+
 		//opening socket
 		$this->Connect();
-		
+
 		if ($this->error == null)
 		{
 			if (!$IsOld17)
@@ -113,14 +113,14 @@ class MCPing
 			{
 				$this->PingOld();
 			}
-			
+
 			//closing socket
 			$this->Close();
 		}
-		
+
 		return $this;
 	}
-	
+
 	public function Response()
 	{
 		return array(
@@ -140,7 +140,7 @@ class MCPing
 			'mods' => $this->mods
 		);
 	}
-	
+
 	public static function ClearMotd($string)
 	{
 		$chars = array('§0', '§1', '§2', '§3', '§4', '§5', '§6', '§7', '§8', '§9', '§a', '§b', '§c', '§d', '§e', '§f', '§k', '§l', '§m', '§n', '§o', '§r');
@@ -148,7 +148,7 @@ class MCPing
 		$output = str_replace('\n', '<br>', $output);
 		return $output;
 	}
-	
+
 	public static function MotdToHtml($minetext)
 	{
 		preg_match_all("/[^§&]*[^§&]|[§&][0-9a-z][^§&]*/", $minetext, $brokenupstrings);
@@ -276,10 +276,10 @@ class MCPing
 		}
 		return $returnstring;
 	}
-	
-	
+
+
 	//private methods
-	
+
 	private function Clear()
 	{
 		$this->socket = null;
@@ -298,39 +298,39 @@ class MCPing
 		$this->favicon = null;
 		$this->mods = null;
 	}
-	
+
 	private function Connect()
 	{
 		$connectTimeout = $this->timeout;
 		$this->socket = @fsockopen($this->address, $this->port, $errno, $errstr, $connectTimeout);
-		
+
 		if (!$this->socket)
 		{
 			$this->error = "Failed to connect or create a socket: $errno ($errstr)";
 			return $this;
 		}
-		
+
 		if ($this->error == null)
 		{
 			stream_set_timeout($this->socket, $this->timeout);
 		}
 	}
-	
+
 	private function Close()
 	{
 		if ($this->error == null and $this->socket !== null)
 		{
 			fclose($this->socket);
-			
+
 			$this->socket = null;
 		}
 	}
-	
+
 	private function ReadVarInt()
 	{
 		$i = 0;
 		$j = 0;
-		
+
 		while (true)
 		{
 			$k = @fgetc($this->socket);
@@ -349,15 +349,15 @@ class MCPing
 				break;
 			}
 		}
-		
+
 		return $i;
 	}
-	
+
 	private function Ping()
 	{
-		
+
 		$TimeStart = microtime(true); // for read timeout purposes
-		
+
 		// See http://wiki.vg/Protocol (Status Ping)
 		$Data = "\x00"; // packet ID = 0 (varint)
 		$Data .= "\x04"; // Protocol version (varint)
@@ -366,11 +366,11 @@ class MCPing
 		$Data .= "\x01"; // Next state: status (varint)
 		$Data = pack('c', strlen($Data)) . $Data; // prepend length of packet ID + data
 		fwrite($this->socket, $Data); // handshake
-		
+
 		$startPing = microtime(true);
 		fwrite($this->socket, "\x01\x00"); // status ping
-		$this->ping=round((microtime(true) - $startPing) * 1000);
-		
+
+
 		$Length = $this->ReadVarInt(); // full packet length
 		if ($Length < 10)
 		{
@@ -397,6 +397,8 @@ class MCPing
 			}
 			$Data .= $block;
 		} while (strlen($Data) < $Length);
+		$this->ping=round((microtime(true) - $startPing) * 1000);
+
 		if ($Data === FALSE)
 		{
 			$this->error = 'Server didn\'t return any data';
@@ -426,13 +428,14 @@ class MCPing
 		$this->motd = $this->CreateDescription($Data['description']);
 		$this->favicon = isset($Data['favicon']) ? $Data['favicon'] : null;
 		$this->mods = isset($Data['modinfo']) ? $Data['modinfo'] : null;
-		
+
 	}
-	
+
 	private function PingOld()
 	{
-		$startPing = microtime(true);
 		fwrite($this->socket, "\xFE\x01");
+
+		$startPing = microtime(true);
 		$Data = fread($this->socket, 512);
 		$this->ping=round((microtime(true) - $startPing) * 1000);
 		
