@@ -15,8 +15,8 @@ It uses TCP protocol on the same port as you would connect to your server an opt
 
 * **Query**
 This method uses GameSpy4 protocol, and requires enabling `query` listener in your `server.properties` like this:
-> *enable-query=true*
-> *query.port=25565*
+> enable-query=true
+> query.port=25565
 
     Query allows to request a full list of servers' plugins and players, however this method is more prone to breaking, so if you don't need all this information, stick to the ping method as it's more reliable.
 
@@ -39,12 +39,12 @@ Please note that this library does resolve **SRV** records too.
 #### Input
 The `GetStatus()` method has 4 optional parameters:
 
-\#|Parameter|Type|Default|Description
---|---------|----|-------|-----------
-1|Host|string|127.0.0.1|Server Hostname or IP address
-2|Port|int|255656|Server port
-3|IsOld17|bool|false|Boolean value to find informations on servers that uses a version older than Minecraft 1.7
-4|Timeout|int|2|Timeout (in seconds)
+\# | Parameter | Type | Default |Description
+---|-----------|------|---------|-----------
+1 | Host | string | 127.0.0.1 |Server Hostname or IP address
+2 | Port | int| 255656 | Server port
+3 | IsOld17 | bool | false | Boolean value to find informations on servers that uses a version older than Minecraft 1.7
+4 | Timeout | int | 2 | Timeout (in seconds)
 
 #### Output
 The `Response()` method return an array with the following keys:
