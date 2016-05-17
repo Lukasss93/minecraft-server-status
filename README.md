@@ -19,6 +19,7 @@ There are two methods of retrieving information about a Minecraft server.
     This method uses GameSpy4 protocol, and requires enabling `query` listener in your `server.properties` like this:
 
     >*enable-query=true*
+    
     >*query.port=25565*
 
     Query allows to request a full list of servers' plugins and players, however this method is more prone to breaking, so if you don't need all this information, stick to the ping method as it's more reliable.
