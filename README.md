@@ -46,7 +46,7 @@ The `GetStatus()` method has 4 optional parameters:
 \# | Parameter | Type | Default |Description
 ---|-----------|------|---------|-----------
 1 | Host | string | 127.0.0.1 |Server Hostname or IP address
-2 | Port | int| 255656 | Server port
+2 | Port | int| 25565 | Server port
 3 | IsOld17 | bool | false | Boolean value to find informations on servers that uses a version older than Minecraft 1.7
 4 | Timeout | int | 2 | Timeout (in seconds)
 
@@ -73,8 +73,44 @@ mods|array|Returns a list of installed mods on the server
 ----
 
 ## MCQuery
-Coming soon
+#### Using
+```php
+<?php
+	require 'MCQuery.php';	
+	
+	$status = new MCQuery();
+	print_r( $status->GetStatus( 'localhost', 25565 )->Response() );	
+?>
+```
 
+#### Input
+The `GetStatus()` method has 4 optional parameters:
 
+\# | Parameter | Type | Default |Description
+---|-----------|------|---------|-----------
+1 | Host | string | 127.0.0.1 |Server Hostname or IP address
+2 | Port | int| 25565 | Server query port
+4 | Timeout | int | 2 | Timeout (in seconds)
+
+#### Output
+The `Response()` method return an array with the following keys:
+
+Key|Type|Description
+---|----|------------
+online|bool|Returns `true` if the server is online else `false`
+error|string|Returns any error message
+hostname|string|Returns the server hostname or IP address
+address|string|Returns server IP address
+port|int|Returns the server port
+version|string|Returns the server version
+software|string|Returns the server software
+game_type|string|Returns the server software type
+game_name|string|Return the server software name
+players|int|Returns the number of online players
+max_players|int|Returns the maximum number of players that can enter the server
+player_list|array|Returns a list of online players
+motd|string|Returns server description
+map|string|Returns the server map name
+plugins|array|Returns a list of installed plugins on the server
 
 
