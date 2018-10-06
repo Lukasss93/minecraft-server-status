@@ -1,497 +1,313 @@
 <?php
 
-class MCPing
-{
-	private $socket;
-	private $timeout;
+namespace MCServerStatus;
 
-	private $error;
-	private $host;
-	private $address;
-	private $port;
-	private $ping;
-	private $version;
-	private $protocol;
-	private $players;
-	private $max_players;
-	private $sample_player_list;
-	private $motd;
-	private $favicon;
-	private $mods;
+use Exception;
+use MCServerStatus\Exceptions\MCPingException;
+use MCServerStatus\Responses\MCPingResponse;
 
-	//public methods
-
-	public function __construct()
-	{
+/**
+ * PHP class to check the status of a Minecraft server by Ping
+ * Class MCPing
+ * @package MCServerStatus
+ */
+class MCPing {
+	
+	private static $socket;
+	private static $timeout;
+	private static $response;
+	
+	private function __construct() {
 	}
-
-	public function __destruct()
-	{
-		$this->Close();
-	}
-
-	public function GetStatus($Hostname = '127.0.0.1', $Port = 25565, $IsOld17 = false, $Timeout = 2)
-	{
-		$this->Clear();
-
-		$this->host = $Hostname;
-		$this->port = $Port;
-		$this->timeout = $Timeout;
-
-		//validate host
-		if (filter_var($this->host, FILTER_VALIDATE_IP))
-		{
-			//host is ip => address is host
-			$this->address = $this->host;
-		}
-		else
-		{
-			//find domain ip
-			$resolvedIp = gethostbyname($this->host);
-
-			if (filter_var($resolvedIp, FILTER_VALIDATE_IP))
-			{
-				//resolvedIp is a valid IP => address is resolvedIp
-				$this->address = $resolvedIp;
+	
+	/**
+	 * Check and get the server status
+	 * @param string $hostname
+	 * @param int    $port
+	 * @param int    $timeout
+	 * @param bool   $isOld17
+	 * @return MCPingResponse
+	 */
+	public static function check($hostname = '127.0.0.1', $port = 25565, $timeout = 2, $isOld17 = false) {
+		
+		//initialize response
+		self::$response = new MCPingResponse();
+		
+		try {
+			
+			//save hostname
+			self::$response->hostname = $hostname;
+			
+			//check port
+			if(!is_int($port) || $port < 1024 || $port > 65535) {
+				throw new MCPingException('Invalid port');
 			}
-			else
-			{
-				//resolvedIp is not a valid IP then find SRV record
-				$dns = @dns_get_record('_minecraft._tcp.' . $this->host, DNS_SRV);
-				/*
-				 * added @ because in a few server, php return this error:
-				 * 'dns_get_record(): A temporary server error occurred'
-				 * the resolution time is almost always 15-25sec.
-				 * I don't know how fix the time.
-				 */
-
-				if (!$dns)
-				{
-					$this->error = 'dns_get_record(): A temporary server error occurred';
-					return $this;
+			self::$response->port = $port;
+			
+			//check timeout
+			if(!is_int($timeout) || $timeout < 0) {
+				throw new MCPingException('Invalid timeout');
+			}
+			self::$timeout = $timeout;
+			
+			//validate isold17 parameter
+			if(!is_bool($isOld17)) {
+				throw new MCPingException('Invalid parameter in $isold17');
+			}
+			
+			//validate host
+			if(filter_var(self::$response->hostname, FILTER_VALIDATE_IP)) {
+				//host is ip => address is host
+				self::$response->address = self::$response->hostname;
+			}
+			else {
+				//find domain ip
+				$resolvedIP = gethostbyname(self::$response->hostname);
+				
+				if(filter_var($resolvedIP, FILTER_VALIDATE_IP)) {
+					//resolvedIP is a valid IP => address is resolvedIP
+					self::$response->address = $resolvedIP;
 				}
-
-				if (is_array($dns) and count($dns) > 0)
-				{
-					$this->address = gethostbyname($dns[0]['target']);
-					$this->port = $dns[0]['port'];
-				}
-			}
-		}
-
-		//validate port
-		if (!is_int($this->port) || $this->port < 1024 || $this->port > 65535)
-		{
-			$this->error = "Invalid port";
-			return $this;
-		}
-
-		//validate isold17 parameter
-		if (!is_bool($IsOld17))
-		{
-			$this->error = 'Invalid parameter in $isold17';
-			return $this;
-		}
-
-		//validate timeout
-		if (!is_int($this->timeout) || $this->timeout < 0)
-		{
-			$this->error = "Invalid timeout";
-			return $this;
-		}
-
-		//opening socket
-		$this->Connect();
-
-		if ($this->error == null)
-		{
-			if (!$IsOld17)
-			{
-				$this->Ping();
-			}
-			else
-			{
-				$this->PingOld();
-			}
-
-			//closing socket
-			$this->Close();
-		}
-
-		return $this;
-	}
-
-	public function Response()
-	{
-		return array(
-			'online' => $this->error == null ? true : false,
-			'error' => $this->error,
-			'hostname' => $this->host,
-			'address' => $this->address,
-			'port' => $this->port,
-			'ping'=>$this->ping,
-			'version' => $this->version,
-			'protocol' => $this->protocol,
-			'players' => $this->players,
-			'max_players' => $this->max_players,
-			'sample_player_list' => $this->sample_player_list,
-			'motd' => $this->motd,
-			'favicon' => $this->favicon,
-			'mods' => $this->mods
-		);
-	}
-
-	public static function ClearMotd($string)
-	{
-		$chars = array('§0', '§1', '§2', '§3', '§4', '§5', '§6', '§7', '§8', '§9', '§a', '§b', '§c', '§d', '§e', '§f', '§k', '§l', '§m', '§n', '§o', '§r');
-		$output = str_replace($chars, '', $string);
-		$output = str_replace('\n', '<br>', $output);
-		return $output;
-	}
-
-	public static function MotdToHtml($minetext)
-	{
-		preg_match_all("/[^§&]*[^§&]|[§&][0-9a-z][^§&]*/", $minetext, $brokenupstrings);
-		$returnstring = "";
-		foreach ($brokenupstrings as $results)
-		{
-			$ending = '';
-			foreach ($results as $individual)
-			{
-				$code = preg_split("/[&§][0-9a-z]/", $individual);
-				preg_match("/[&§][0-9a-z]/", $individual, $prefix);
-				if (isset($prefix[0]))
-				{
-					$actualcode = substr($prefix[0], 1);
-					switch ($actualcode)
-					{
-						case "1":
-							$returnstring = $returnstring . '<span style="color:#0000aa">';
-							$ending = $ending . "</span>";
-							break;
-						case "2":
-							$returnstring = $returnstring . '<span style="color:#00aa00">';
-							$ending = $ending . "</span>";
-							break;
-						case "3":
-							$returnstring = $returnstring . '<span style="color:#00aaaa">';
-							$ending = $ending . "</span>";
-							break;
-						case "4":
-							$returnstring = $returnstring . '<span style="color:#aa0000">';
-							$ending = $ending . "</span>";
-							break;
-						case "5":
-							$returnstring = $returnstring . '<span style="color:#aa00aa">';
-							$ending = $ending . "</span>";
-							break;
-						case "6":
-							$returnstring = $returnstring . '<span style="color:#ffaa00">';
-							$ending = $ending . "</span>";
-							break;
-						case "7":
-							$returnstring = $returnstring . '<span style="color:#aaaaaa">';
-							$ending = $ending . "</span>";
-							break;
-						case "8":
-							$returnstring = $returnstring . '<span style="color:#555555">';
-							$ending = $ending . "</span>";
-							break;
-						case "9":
-							$returnstring = $returnstring . '<span style="color:#5555ff">';
-							$ending = $ending . "</span>";
-							break;
-						case "a":
-							$returnstring = $returnstring . '<span style="color:#55ff55">';
-							$ending = $ending . "</span>";
-							break;
-						case "b":
-							$returnstring = $returnstring . '<span style="color:#55ffff">';
-							$ending = $ending . "</span>";
-							break;
-						case "c":
-							$returnstring = $returnstring . '<span style="color:#ff5555">';
-							$ending = $ending . "</span>";
-							break;
-						case "d":
-							$returnstring = $returnstring . '<span style="color:#ff55ff">';
-							$ending = $ending . "</span>";
-							break;
-						case "e":
-							$returnstring = $returnstring . '<span style="color:rgb(221, 195, 0)">';
-							$ending = $ending . "</span>";
-							break;
-						case "f":
-							$returnstring = $returnstring . '<span style="color:#ffffff">';
-							$ending = $ending . "</span>";
-							break;
-						case "l":
-							if (strlen($individual) > 2)
-							{
-								$returnstring = $returnstring . '<span style="font-weight:bold;">';
-								$ending = "</span>" . $ending;
-								break;
-							}
-						case "m":
-							if (strlen($individual) > 2)
-							{
-								$returnstring = $returnstring . '<strike>';
-								$ending = "</strike>" . $ending;
-								break;
-							}
-						case "n":
-							if (strlen($individual) > 2)
-							{
-								$returnstring = $returnstring . '<span style="text-decoration: underline;">';
-								$ending = "</span>" . $ending;
-								break;
-							}
-						case "o":
-							if (strlen($individual) > 2)
-							{
-								$returnstring = $returnstring . '<i>';
-								$ending = "</i>" . $ending;
-								break;
-							}
-						case "r":
-							$returnstring = $returnstring . $ending;
-							$ending = '';
-							break;
+				else {
+					//resolvedIP is not a valid IP then find SRV record
+					$dns = @dns_get_record('_minecraft._tcp.' . self::$response->hostname, DNS_SRV);
+					/*
+					 * added @ because in a few server, php return this error:
+					 * 'dns_get_record(): A temporary server error occurred'
+					 * the resolution time is almost always 15-25sec.
+					 * I don't know how fix the time.
+					 */
+					
+					if(!$dns) {
+						throw new MCPingException('dns_get_record(): A temporary server error occurred');
 					}
-					if (isset($code[1]))
-					{
-						$returnstring = $returnstring . $code[1];
-						if (isset($ending) && strlen($individual) > 2)
-						{
-							$returnstring = $returnstring . $ending;
-							$ending = '';
-						}
+					
+					if(is_array($dns) and count($dns) > 0) {
+						self::$response->address = gethostbyname($dns[0]['target']);
+						self::$response->port = $dns[0]['port'];
 					}
 				}
-				else
-				{
-					$returnstring = $returnstring . $individual;
-				}
 			}
-		}
-		return $returnstring;
-	}
-
-
-	//private methods
-
-	private function Clear()
-	{
-		$this->socket = null;
-		$this->timeout = null;
-		$this->error = null;
-		$this->host = null;
-		$this->address = null;
-		$this->port = null;
-		$this->ping=null;
-		$this->version = null;
-		$this->protocol = null;
-		$this->players = null;
-		$this->max_players = null;
-		$this->sample_player_list = null;
-		$this->motd = null;
-		$this->favicon = null;
-		$this->mods = null;
-	}
-
-	private function Connect()
-	{
-		$connectTimeout = $this->timeout;
-		$this->socket = @fsockopen($this->address, $this->port, $errno, $errstr, $connectTimeout);
-
-		if (!$this->socket)
-		{
-			$this->error = "Failed to connect or create a socket: $errno ($errstr)";
-			return $this;
-		}
-
-		if ($this->error == null)
-		{
-			stream_set_timeout($this->socket, $this->timeout);
-		}
-	}
-
-	private function Close()
-	{
-		if ($this->error == null and $this->socket !== null)
-		{
-			fclose($this->socket);
-
-			$this->socket = null;
-		}
-	}
-
-	private function ReadVarInt()
-	{
-		$i = 0;
-		$j = 0;
-
-		while (true)
-		{
-			$k = @fgetc($this->socket);
-			if ($k === FALSE)
-			{
-				return 0;
+			
+			//open the socket
+			self::$socket = @fsockopen(self::$response->address, self::$response->port, $errno, $errstr, self::$timeout);
+			if(!self::$socket) {
+				throw new MCPingException("Failed to connect or create a socket: $errstr");
 			}
-			$k = ord($k);
-			$i |= ($k & 0x7F) << $j++ * 7;
-			if ($j > 5)
-			{
-				$this->error = 'VarInt too big';
+			stream_set_timeout(self::$socket, self::$timeout);
+			
+			//get server infos
+			if(!$isOld17) {
+				self::ping();
 			}
-			if (($k & 0x80) != 128)
-			{
-				break;
+			else {
+				self::pingOld();
 			}
+			
+			//server status (if you are here the server is online obv)
+			self::$response->online = true;
 		}
-
-		return $i;
+		catch(MCPingException $e) {
+			self::$response->error = $e->getMessage();
+		}
+		catch(Exception $e) {
+			self::$response->error = $e->getMessage();
+		}
+		finally {
+			//close the socket
+			@fclose(self::$socket);
+		}
+		
+		//return the response
+		return self::$response;
 	}
-
-	private function Ping()
-	{
-
-		$TimeStart = microtime(true); // for read timeout purposes
-
-		// See http://wiki.vg/Protocol (Status Ping)
-		$Data = "\x00"; // packet ID = 0 (varint)
-		$Data .= "\x04"; // Protocol version (varint)
-		$Data .= pack('c', strlen($this->address)) . $this->address; // Server (varint len + UTF-8 addr)
-		$Data .= pack('n', $this->port); // Server port (unsigned short)
-		$Data .= "\x01"; // Next state: status (varint)
-		$Data = pack('c', strlen($Data)) . $Data; // prepend length of packet ID + data
-		fwrite($this->socket, $Data); // handshake
-
+	
+	/**
+	 * Ping the server with version >= 1.7
+	 * @throws MCPingException
+	 */
+	private static function ping() {
+		
+		// for read timeout purposes
+		$timestart = microtime(true);
+		
+		//data to send with socket, see http://wiki.vg/Protocol (Status Ping)
+		
+		//packet ID = 0 (varint)
+		$data = "\x00";
+		
+		//protocol version (varint)
+		$data .= "\x04";
+		
+		//server (varint len + UTF-8 addr)
+		$data .= pack('c', strlen(self::$response->address)) . self::$response->address;
+		
+		//server port (unsigned short)
+		$data .= pack('n', self::$response->port);
+		
+		//next state: status (varint)
+		$data .= "\x01";
+		
+		//prepend length of packet ID + data
+		$data = pack('c', strlen($data)) . $data;
+		
+		//handshake
+		fwrite(self::$socket, $data);
+		
+		//start ping time
 		$startPing = microtime(true);
-		fwrite($this->socket, "\x01\x00"); // status ping
-
-
-		$Length = $this->ReadVarInt(); // full packet length
-		if ($Length < 10)
-		{
-			$this->error = '$Length < 10';
-			return $this;
+		
+		// status ping
+		fwrite(self::$socket, "\x01\x00");
+		
+		//full packet length
+		$length = self::readVarInt();
+		if($length < 10) {
+			throw new MCPingException('Response length not valid');
 		}
-		fgetc($this->socket); // packet type, in server ping it's 0
-		$Length = $this->ReadVarInt(); // string length
-		$Data = "";
-		do
-		{
-			if (microtime(true) - $TimeStart > $this->timeout)
-			{
-				$this->error = 'Server read timed out';
-				return $this;
+		
+		//packet type, in server ping it's 0
+		fgetc(self::$socket);
+		
+		//string length
+		$length = self::readVarInt();
+		$data = "";
+		do {
+			if(microtime(true) - $timestart > self::$timeout) {
+				throw new MCPingException('Server read timed out');
 			}
-			$Remainder = $Length - strlen($Data);
-			$block = fread($this->socket, $Remainder); // and finally the json string
-			// abort if there is no progress
-			if (!$block)
-			{
-				$this->error = 'Server returned too few data';
-				return $this;
+			$remainder = $length - strlen($data);
+			
+			//get the json string
+			$block = fread(self::$socket, $remainder);
+			
+			//abort if there is no progress
+			if(!$block) {
+				throw new MCPingException('Server returned too few data');
 			}
-			$Data .= $block;
-		} while (strlen($Data) < $Length);
-		$this->ping=round((microtime(true) - $startPing) * 1000);
-
-		if ($Data === FALSE)
-		{
-			$this->error = 'Server didn\'t return any data';
-			return $this;
+			$data .= $block;
 		}
-		$Data = json_decode($Data, true);
-		if (json_last_error() !== JSON_ERROR_NONE)
-		{
-			if (function_exists('json_last_error_msg'))
-			{
-				$this->error = json_last_error_msg();
-				return $this;
-			}
-			else
-			{
-				$this->error = 'JSON parsing failed';
-				return $this;
-			}
-			$this->error = 'json_last_error( ) !== JSON_ERROR_NONE';
-			return $this;
+		while(strlen($data) < $length);
+		
+		//calculate the ping
+		self::$response->ping = round((microtime(true) - $startPing) * 1000);
+		
+		//no data
+		if($data === false) {
+			throw new MCPingException('Server didn\'t return any data');
 		}
-		$this->version = $Data['version']['name'];
-		$this->protocol = $Data['version']['protocol'];
-		$this->players = $Data['players']['online'];
-		$this->max_players = $Data['players']['max'];
-		$this->sample_player_list = $this->CreateSamplePlayerList(@$Data['players']['sample']);
-		$this->motd = $this->CreateDescription($Data['description']);
-		$this->favicon = isset($Data['favicon']) ? $Data['favicon'] : null;
-		$this->mods = isset($Data['modinfo']) ? $Data['modinfo'] : null;
-
+		
+		//decode json data
+		$data = json_decode($data, true);
+		
+		//optional json error
+		if(json_last_error() !== JSON_ERROR_NONE) {
+			throw new MCPingException(json_last_error_msg());
+		}
+		
+		self::$response->version = $data['version']['name'];
+		self::$response->protocol = $data['version']['protocol'];
+		self::$response->players = $data['players']['online'];
+		self::$response->max_players = $data['players']['max'];
+		self::$response->sample_player_list = self::createSamplePlayerList(@$data['players']['sample']);
+		self::$response->motd = self::createMotd($data['description']);
+		self::$response->favicon = isset($data['favicon']) ? $data['favicon'] : null;
+		self::$response->mods = isset($data['modinfo']) ? $data['modinfo'] : null;
 	}
-
-	private function PingOld()
-	{
-		fwrite($this->socket, "\xFE\x01");
-
+	
+	/**
+	 * Ping the server with version < 1.7
+	 * @throws MCPingException
+	 */
+	private static function pingOld() {
+		fwrite(self::$socket, "\xFE\x01");
+		
+		//start ping time
 		$startPing = microtime(true);
-		$Data = fread($this->socket, 512);
-		$this->ping=round((microtime(true) - $startPing) * 1000);
 		
-		$Len = strlen($Data);
+		$data = fread(self::$socket, 512);
+		self::$response->ping = round((microtime(true) - $startPing) * 1000);
 		
-		if ($Len < 4 || $Data[0] !== "\xFF")
-		{
-			$this->error = '$Len < 4 || $Data[ 0 ] !== "\xFF"';
-			return $this;
+		$length = strlen($data);
+		if($length < 4 || $data[0] !== "\xFF") {
+			throw new MCPingException('$length < 4 || $data[ 0 ] !== "\xFF"');
 		}
 		
-		$Data = substr($Data, 3); // Strip packet header (kick message packet and short length)
-		$Data = iconv('UTF-16BE', 'UTF-8', $Data);
+		//strip packet header (kick message packet and short length)
+		$data = substr($data, 3);
+		$data = iconv('UTF-16BE', 'UTF-8', $data);
 		
-		// Are we dealing with Minecraft 1.4+ server?
-		if ($Data[1] === "\xA7" && $Data[2] === "\x31")
-		{
-			$Data = explode("\x00", $Data);
-			
-			
-			$this->motd = $Data[3];
-			$this->players = intval($Data[4]);
-			$this->max_players = intval($Data[5]);
-			$this->protocol = intval($Data[1]);
-			$this->version = $Data[2];
+		//are we dealing with Minecraft 1.4+ server?
+		if($data[1] === "\xA7" && $data[2] === "\x31") {
+			$data = explode("\x00", $data);
+			self::$response->motd = $data[3];
+			self::$response->players = intval($data[4]);
+			self::$response->max_players = intval($data[5]);
+			self::$response->protocol = intval($data[1]);
+			self::$response->version = $data[2];
 		}
-		else
-		{
-			
-			$Data = explode("\xA7", $Data);
-			
-			$this->motd = substr($Data[0], 0, -1);
-			$this->players = isset($Data[1]) ? intval($Data[1]) : 0;
-			$this->max_players = isset($Data[2]) ? intval($Data[2]) : 0;
-			$this->protocol = 0;
-			$this->version = '1.3';
+		else {
+			$data = explode("\xA7", $data);
+			self::$response->motd = substr($data[0], 0, -1);
+			self::$response->players = isset($data[1]) ? intval($data[1]) : 0;
+			self::$response->max_players = isset($data[2]) ? intval($data[2]) : 0;
+			self::$response->protocol = 0;
+			self::$response->version = '1.3';
 		}
 		
 	}
 	
-	private function CreateDescription($string)
-	{
-		if (!is_array($string))
-		{
+	/**
+	 * Read int var from socket
+	 * @return int
+	 * @throws MCPingException
+	 */
+	private static function readVarInt() {
+		$i = 0;
+		$j = 0;
+		
+		while(true) {
+			$k = @fgetc(self::$socket);
+			if($k === false) {
+				return 0;
+			}
+			$k = ord($k);
+			$i |= ($k & 0x7F) << $j++ * 7;
+			if($j > 5) {
+				throw new MCPingException('VarInt too big');
+			}
+			if(($k & 0x80) != 128) {
+				break;
+			}
+		}
+		
+		return $i;
+	}
+	
+	/**
+	 * Return sample player list
+	 * @param $obj
+	 * @return array|null
+	 */
+	private static function createSamplePlayerList($obj) {
+		return (isset($obj) && is_array($obj) && count($obj) > 0) ? $obj : null;
+	}
+	
+	/**
+	 * Build the motd
+	 * @param $string
+	 * @return mixed|string
+	 */
+	private static function createMotd($string) {
+		if(!is_array($string)) {
 			return $string;
 		}
-		else if (isset($string['extra']))
-		{
+		else if(isset($string['extra'])) {
 			$output = '';
 			
-			foreach ($string['extra'] as $item)
-			{
-				if (isset($item['color']))
-				{
-					switch ($item['color'])
-					{
+			foreach($string['extra'] as $item) {
+				if(isset($item['color'])) {
+					switch($item['color']) {
 						case 'black':
 							$output .= '§0';
 							break;
@@ -543,65 +359,44 @@ class MCPing
 					}
 				}
 				
-				if (isset($item['obfuscated']))
-				{
+				if(isset($item['obfuscated'])) {
 					$output .= '§k';
 				}
 				
-				if (isset($item['bold']))
-				{
+				if(isset($item['bold'])) {
 					$output .= '§l';
 				}
 				
-				if (isset($item['strikethrough']))
-				{
+				if(isset($item['strikethrough'])) {
 					$output .= '§m';
 				}
 				
-				if (isset($item['underline']))
-				{
+				if(isset($item['underline'])) {
 					$output .= '§n';
 				}
 				
-				if (isset($item['italic']))
-				{
+				if(isset($item['italic'])) {
 					$output .= '§o';
 				}
 				
-				if (isset($item['reset']))
-				{
+				if(isset($item['reset'])) {
 					$output .= '§r';
 				}
 				
 				$output .= $item['text'];
 			}
 			
-			if (isset($string['text']))
-			{
+			if(isset($string['text'])) {
 				$output .= $string['text'];
 			}
 			
 			return $output;
 		}
-		else if (isset($string['text']))
-		{
+		else if(isset($string['text'])) {
 			return $string['text'];
 		}
-		else
-		{
+		else {
 			return $string;
-		}
-	}
-	
-	private function CreateSamplePlayerList($obj)
-	{
-		if (isset($obj) and is_array($obj) and count($obj) > 0)
-		{
-			return $obj;
-		}
-		else
-		{
-			return null;
 		}
 	}
 }

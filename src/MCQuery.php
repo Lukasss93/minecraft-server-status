@@ -27,7 +27,7 @@ class MCQuery {
 	 * @param bool   $resolveSRV
 	 * @return MCQueryResponse
 	 */
-	public static function check($host = '127.0.0.1', $port = 25565, $timeout = 2, $resolveSRV=true) {
+	public static function check($host = '127.0.0.1', $port = 25565, $timeout = 2, $resolveSRV = true) {
 		
 		//initialize response
 		$response = new MCQueryResponse();
