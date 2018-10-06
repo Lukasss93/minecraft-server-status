@@ -1,0 +1,21 @@
+{
+	"name": "lukasss93/minecraft-server-status",
+	"description": "PHP library to check Minecraft Servers Status",
+	"license": "MIT",
+	"authors": [
+		{
+			"name": "Luca Patera",
+			"email": "lucapatera@outlook.it"
+		}
+	],
+	"require": {
+		"digitalnature/php-ref": "^1.2"
+	},
+	"autoload": {
+		"psr-4": {
+			"MCServerStatus\\": "src/",
+			"MCServerStatus\\Responses\\":"src/Responses",
+			"MCServerStatus\\Exceptions\\":"src/Exceptions"
+		}
+	}
+}
