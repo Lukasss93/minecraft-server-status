@@ -9,6 +9,9 @@
 		}
 	],
 	"require": {
+		"php": ">=5.6",
+		"ext-json":"*",
+		"ext-iconv":"*",
 		"digitalnature/php-ref": "^1.2"
 	},
 	"autoload": {

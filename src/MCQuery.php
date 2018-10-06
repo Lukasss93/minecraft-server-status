@@ -4,7 +4,6 @@ namespace MCServerStatus;
 
 use Exception;
 use MCServerStatus\Exceptions\MCQueryException;
-use MCServerStatus\Exceptions\WriteDataToSocketException;
 use MCServerStatus\Responses\MCQueryResponse;
 
 /**
@@ -17,32 +16,45 @@ class MCQuery {
 	private static $handshake = 0x09;
 	private static $socket;
 	
-	private function __construct() { }
+	private function __construct() {
+	}
 	
 	/**
 	 * Check and get the server status
 	 * @param string $host    Server hostname
 	 * @param int    $port    Server query port
 	 * @param int    $timeout Timeout in seconds
+	 * @param bool   $resolveSRV
 	 * @return MCQueryResponse
 	 */
-	public static function check($host = '127.0.0.1', $port = 25565, $timeout = 2) {
+	public static function check($host = '127.0.0.1', $port = 25565, $timeout = 2, $resolveSRV=true) {
 		
 		//initialize response
-		$response=new MCQueryResponse();
+		$response = new MCQueryResponse();
 		
-		//save hostname to response
-		$response->hostname = $host;
-		
-		try{
+		try {
+			
+			//save hostname to response
+			$response->hostname = $host;
+			
 			//check port
-			if(!is_int($port) || $port<1 || $port>65535){
+			if(!is_int($port) || $port < 1024 || $port > 65535) {
 				throw new MCQueryException('Invalid port');
 			}
 			
 			//check timeout
 			if(!is_int($timeout) || $timeout < 0) {
 				throw new MCQueryException('Invalid timeout');
+			}
+			
+			//check resolveSRV
+			if(!is_bool($resolveSRV)) {
+				throw new MCQueryException('Invalid resolveSRV');
+			}
+			
+			//resolve SRV record
+			if($resolveSRV) {
+				self::resolveSRV($host, $port);
 			}
 			
 			//open the socket
@@ -114,9 +126,9 @@ class MCQuery {
 			}
 			
 			//integer results
-			$response->players=intval($info['Players']);
-			$response->max_players=intval($info['MaxPlayers']);
-			$response->port=intval($info['HostPort']);
+			$response->players = intval($info['Players']);
+			$response->max_players = intval($info['MaxPlayers']);
+			$response->port = intval($info['HostPort']);
 			
 			//parse "plugins", if any
 			if(@$info['Plugins']) {
@@ -133,43 +145,40 @@ class MCQuery {
 				$info['Software'] = 'Vanilla';
 			}
 			
-			if(!is_array($info['Plugins'])){
-				$info['Plugins']=[];
+			if(!is_array($info['Plugins'])) {
+				$info['Plugins'] = [];
 			}
 			
 			//get other infos
-			$response->address=isset($info['HostIp']) ? $info['HostIp'] : null;
-			$response->version=isset($info['Version']) ? $info['Version'] : null;
-			$response->software=isset($info['Software']) ? $info['Software'] : null;
-			$response->game_type=isset($info['GameType']) ? $info['GameType'] : null;
-			$response->game_name=isset($info['GameName']) ? $info['GameName'] : null;
-			$response->motd=isset($info['HostName']) ? $info['HostName'] : null;
-			$response->map=isset($info['Map']) ? $info['Map'] : null;
-			$response->plugins=$info['Plugins'];
+			$response->address = isset($info['HostIp']) ? $info['HostIp'] : null;
+			$response->version = isset($info['Version']) ? $info['Version'] : null;
+			$response->software = isset($info['Software']) ? $info['Software'] : null;
+			$response->game_type = isset($info['GameType']) ? $info['GameType'] : null;
+			$response->game_name = isset($info['GameName']) ? $info['GameName'] : null;
+			$response->motd = isset($info['HostName']) ? $info['HostName'] : null;
+			$response->map = isset($info['Map']) ? $info['Map'] : null;
+			$response->plugins = $info['Plugins'];
 			
 			//get player list
 			if($players) {
-				$response->player_list=explode("\x00", $players);
+				$response->player_list = explode("\x00", $players);
 			}
 			
 			//get the ip address if the address is 0.0.0.0
-			if($response->address==='0.0.0.0'){
-				$response->address=gethostbyname($response->hostname);
+			if($response->address === '0.0.0.0') {
+				$response->address = gethostbyname($response->hostname);
 			}
 			
 			//server status (if you are here the server is online obv)
-			$response->online=true;
+			$response->online = true;
 		}
-		catch(MCQueryException $e){
-			$response->error=$e->getMessage();
+		catch(MCQueryException $e) {
+			$response->error = $e->getMessage();
 		}
-		catch(WriteDataToSocketException $e){
-			$response->error=$e->getMessage();
+		catch(Exception $e) {
+			$response->error = $e->getMessage();
 		}
-		catch(Exception $e){
-			$response->error=$e->getMessage();
-		}
-		finally{
+		finally {
 			//close the socket
 			@fclose(self::$socket);
 		}
@@ -179,28 +188,50 @@ class MCQuery {
 	}
 	
 	/**
+	 * Resolve SRV record
+	 * @param $host
+	 * @param $port
+	 */
+	private static function resolveSRV(&$host, &$port) {
+		if(ip2long($host) !== false) {
+			return;
+		}
+		
+		$record = dns_get_record('_minecraft._tcp.' . $host, DNS_SRV);
+		
+		if(empty($record)) {
+			return;
+		}
+		
+		if(isset($record[0]['target'])) {
+			$host = $record[0]['target'];
+			$port = $record[0]['port'];
+		}
+	}
+	
+	/**
 	 * Write data to socket
 	 * @param string $command
 	 * @param string $append
 	 * @return mixed
-	 * @throws WriteDataToSocketException
+	 * @throws MCQueryException
 	 */
-	private static function writedata($command, $append = "") {
+	private static function writedata($command, $append = '') {
 		$command = pack('c*', 0xFE, 0xFD, $command, 0x01, 0x02, 0x03, 0x04) . $append;
 		$length = strlen($command);
 		
 		if($length !== @fwrite(self::$socket, $command, $length)) {
-			throw new WriteDataToSocketException('Failed to write on socket');
+			throw new MCQueryException('Failed to write on socket');
 		}
 		
 		$data = @fread(self::$socket, 4096);
 		
 		if($data === false) {
-			throw new WriteDataToSocketException('Failed to read from socket');
+			throw new MCQueryException('Failed to read from socket');
 		}
 		
 		if(strlen($data) < 5 || $data[0] != $command[2]) {
-			throw new WriteDataToSocketException('Strlen error');
+			return false;
 		}
 		
 		return substr($data, 5);
