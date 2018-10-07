@@ -1,5 +1,10 @@
 # Minecraft Server Status
 
+[![Latest Stable Version](https://poser.pugx.org/lukasss93/minecraft-server-status/v/stable)](https://packagist.org/packages/lukasss93/minecraft-server-status)
+[![Total Downloads](https://poser.pugx.org/lukasss93/minecraft-server-status/downloads)](https://packagist.org/packages/lukasss93/minecraft-server-status)
+[![License](https://poser.pugx.org/lukasss93/minecraft-server-status/license)](https://packagist.org/packages/lukasss93/minecraft-server-status)
+![PHP](https://img.shields.io/badge/php-%3E%3D5.6-green.svg)
+
 > This library can be used to check Minecraft Servers Status for some basic information.
 
 **⚠ Please do not create issues when you are unable to retrieve information from a server, unless you can prove that there is a bug within the library.**
