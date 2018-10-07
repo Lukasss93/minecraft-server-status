@@ -114,7 +114,7 @@ The `check()` method has 4 optional parameters:
 5 | resolveSRV | bool | true | Resolve SRV record
 
 #### Output
-The `check()` method return an array with the following keys:
+The `check()` method return an array with the following properties:
 
 Key|Type|Description
 ---|----|------------
@@ -133,6 +133,14 @@ player_list|array|Returns a list of online players
 motd|string|Returns server description
 map|string|Returns the server map name
 plugins|array|Returns a list of installed plugins on the server
+
+_You can use the following methods after_ `check()` _method:_
+
+Method|Description
+------|-----------
+toArray()|Return the object properties as an array
+getMotdToText()|Get the motd without the format codes
+getMotdToHtml()|Get the motd as HTML
 
 Changelog
 ---------
