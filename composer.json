@@ -2,6 +2,7 @@
 	"name": "lukasss93/minecraft-server-status",
 	"description": "PHP library to check Minecraft Servers Status",
 	"license": "MIT",
+	"type": "project",
 	"authors": [
 		{
 			"name": "Luca Patera",
