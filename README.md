@@ -152,5 +152,5 @@ Changelog
 All notable changes to this project will be documented [here](https://github.com/Lukasss93/minecraft-server-status/blob/master/CHANGELOG.md).
 
 ### Recent changes
-## [1.0]
+## [2.0]
 - First release
