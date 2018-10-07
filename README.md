@@ -110,8 +110,8 @@ The `check()` method has 4 optional parameters:
 ---|-----------|------|---------|-----------
 1 | host | string | 127.0.0.1 | Server Hostname or IP address
 2 | port | int| 25565 | Server query port
-4 | timeout | int | 2 | Timeout (in seconds)
-5 | resolveSRV | bool | true | Resolve SRV record
+3 | timeout | int | 2 | Timeout (in seconds)
+4 | resolveSRV | bool | true | Resolve SRV record
 
 #### Output
 The `check()` method return an array with the following properties:
