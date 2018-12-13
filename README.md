@@ -48,8 +48,20 @@ Using
 #### Using
 ```php
 <?php
-	use MCServerStatus\MCPing;
-	print_r( MCPing::check('hostname or IP') );
+	//using the class
+	use MCServerStatus\MCQuery;
+	
+	//include composer autoload
+	require_once('../vendor/autoload.php');
+	
+	//checking account
+	$response=MCQuery::check('hostname or IP');
+	
+	//get informations from object
+	var_dump($response);
+	
+	//or from array
+	var_dump($response->toArray());
 ?>
 ```
 
@@ -103,8 +115,20 @@ getMotdToHtml()|Get the motd as HTML
 #### Using
 ```php
 <?php
+	//using the class
 	use MCServerStatus\MCQuery;
-	print_r( MCQuery::check('hostname or IP') );
+	
+	//include composer autoload
+	require_once('../vendor/autoload.php');
+	
+	//checking account
+	$response=MCQuery::check('hostname or IP');
+	
+	//get informations from object
+	var_dump($response);
+	
+	//or from array
+	var_dump($response->toArray());
 ?>
 ```
 
