@@ -49,13 +49,13 @@ Using
 ```php
 <?php
 	//using the class
-	use MCServerStatus\MCQuery;
+	use MCServerStatus\MCPing;
 	
 	//include composer autoload
 	require_once('../vendor/autoload.php');
 	
 	//checking account
-	$response=MCQuery::check('hostname or IP');
+	$response=MCPing::check('hostname or IP');
 	
 	//get informations from object
 	var_dump($response);
