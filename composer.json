@@ -20,5 +20,8 @@
 			"MCServerStatus\\Responses\\":"src/Responses",
 			"MCServerStatus\\Exceptions\\":"src/Exceptions"
 		}
+	},
+	"require-dev": {
+		"phpunit/phpunit": "7"
 	}
 }
