@@ -17,7 +17,7 @@ class MCPing {
 	private static $timeout;
 	private static $response;
 	
-	private function __construct() {
+	protected function __construct() {
 	}
 	
 	/**
