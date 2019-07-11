@@ -16,7 +16,7 @@ class MCQuery {
 	private static $handshake = 0x09;
 	private static $socket;
 	
-	private function __construct() {
+	protected function __construct() {
 	}
 	
 	/**
