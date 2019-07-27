@@ -190,7 +190,7 @@ class MCPing {
 		while(strlen($data) < $length);
 		
 		//calculate the ping
-		self::$response->ping = round((microtime(true) - $startPing) * 1000);
+		self::$response->ping = (int)round((microtime(true) - $startPing) * 1000);
 		
 		//no data
 		if($data === false) {
@@ -226,7 +226,7 @@ class MCPing {
 		$startPing = microtime(true);
 		
 		$data = fread(self::$socket, 512);
-		self::$response->ping = round((microtime(true) - $startPing) * 1000);
+		self::$response->ping = (int)round((microtime(true) - $startPing) * 1000);
 		
 		$length = strlen($data);
 		if($length < 4 || $data[0] !== "\xFF") {
