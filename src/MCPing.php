@@ -383,7 +383,8 @@ class MCPing {
 					$output .= '§r';
 				}
 				
-				$output .= $item['text'];
+				$output .= is_array($item) ? $item['text'] ?? '' : $item;
+				
 			}
 			
 			if(isset($string['text'])) {
